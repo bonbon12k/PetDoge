@@ -1,14 +1,15 @@
 package com.dehboxturtle.petdoge;
 
 import android.animation.Animator;
-import android.app.ActionBar;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
 import android.graphics.drawable.AnimationDrawable;
-import android.graphics.drawable.Drawable;
+import android.media.MediaPlayer;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
-import android.view.animation.Animation;
-import android.view.animation.TranslateAnimation;
+import android.view.Window;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
@@ -19,50 +20,27 @@ public class MainActivity extends AppCompatActivity {
     protected boolean state = false;
     FrameLayout mdogbox;
     ImageView mdog;
-    Animation current;
+    RelativeLayout mdogpen;
     Random rng;
     GifListener listener;
-    private double magnitude = 100;
+    private double magnitude = 200;
     float x;
     float y;
+    float dipwidth;
+    float dipheight;
+    float dipdogwidth;
+    float dipdogheight;
+    float startx;
+    float starty;
+    boolean first = true;
+    float padding = 20;
+    float paddingx = 8;
+    float paddingbot = 65;
+    float scale;
+    boolean onedgex = false;
+    boolean onedgey = false;
+    MediaPlayer mp;
 
-    public void woof(View view) {
-        state = !state;
-        if (state) {
-            x = 0;
-            y = 0;
-            mdog.setImageResource(R.drawable.walkingdogright);
-            mdog.setPadding(0, 0, 0, 0);
-            AnimationDrawable animation = (AnimationDrawable) mdog.getDrawable();
-            animation.start();
-            Animation temp = nextAnimation();
-            listener = new GifListener();
-            mdogbox.setAnimation(temp);
-            temp.setAnimationListener(listener);
-            temp.start();
-        }
-        else {
-        }
-    }
-
-    public Animation nextAnimation() {
-
-        double theta = rng.nextDouble() * 2 * Math.PI;
-        float dx = (float) (Math.cos(theta) * magnitude);
-        float dy = (float) (Math.sin(theta) * magnitude);
-        Animation ani = new TranslateAnimation(x, x + dx, y, y + dy);
-        ani.setDuration((long) (750 + (rng.nextDouble() * 500)));
-        x += dx;
-        y += dy;
-        return ani;
-    }
-
-/*    AnimationDrawable old = (AnimationDrawable) mdog.getDrawable();
-    old.stop();
-    mdog.setImageResource(R.drawable.walkingdogleft);
-    mdog.setPadding(0,0,0,0);
-    AnimationDrawable animation = (AnimationDrawable) mdog.getDrawable();
-    animation.start();*/
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -73,44 +51,119 @@ public class MainActivity extends AppCompatActivity {
         animation.start();
         rng = new Random();
         mdogbox = (FrameLayout) findViewById(R.id.dogbox);
+        x = 0;
+        y = 0;
+        mdogpen = (RelativeLayout) findViewById(R.id.dogpen);
+        mp = MediaPlayer.create(getApplicationContext(), R.raw.dogsong);
+        mp.setLooping(true);
+    }
+
+    public void woof(View view) {
+        scale = getApplicationContext().getResources().getDisplayMetrics().density;
+        if (first) {
+            startx = mdogbox.getX() / scale;
+            starty = mdogbox.getY() / scale;
+            first = false;
+        }
+        state = !state;
+        dipdogheight = mdogbox.getHeight()/scale;
+        dipdogwidth = mdogbox.getWidth()/scale;
+        dipwidth = mdogpen.getMeasuredWidth()/scale;
+        dipheight = mdogpen.getMeasuredHeight()/scale;
+        if (state) {
+            mp.start();
+            mdog.setImageResource(R.drawable.walkingdogright);
+            mdog.setPadding(0, 0, 0, 0);
+            AnimationDrawable animation = (AnimationDrawable) mdog.getDrawable();
+            animation.start();
+            listener = new GifListener();
+            nextAnimation();
+        }
+        else {
+        }
+    }
+
+    public void nextAnimation() {
+        double theta = rng.nextDouble() * 2 * Math.PI;
+        float dx = (float) (Math.cos(theta) * magnitude);
+        float dy = (float) (Math.sin(theta) * magnitude);
+        if (theta < Math.PI/2 || theta > 3 * Math.PI/2) {
+            mdogbox.setScaleX(-1);
+        }
+        else {
+            mdogbox.setScaleX(1);
+        }
+        dx = boundX(dx);
+        dy = boundY(dy);
+        ObjectAnimator anim = ObjectAnimator.ofFloat(mdogbox, "translationX", x, x + dx);
+        ObjectAnimator anim2 = ObjectAnimator.ofFloat(mdogbox, "translationY", y, y + dy);
+        anim.setDuration((long) (500 + rng.nextDouble() * 650));
+        anim2.setDuration((long) (500 + rng.nextDouble() * 650));
+        AnimatorSet movement = new AnimatorSet();
+        movement.playTogether(new ObjectAnimator[]{anim, anim2});
+        movement.addListener(listener);
+        movement.start();
+        x += dx;
+        y += dy;
+    }
+
+    public float boundX(float dx) {
+        float val = dx;
+        if ((x + dx)/scale + dipdogwidth + startx + paddingx > dipwidth) {
+            val = (dipwidth - x/scale - dipdogwidth - startx - paddingx) * scale;
+            onedgex = true;
+        }
+        else if ((x + dx)/scale  + startx - paddingx < 0) {
+            val =  ((-x)/scale - startx + paddingx) * scale;
+            onedgex = true;
+        }
+        else {
+            onedgex = false;
+        }
+        if (onedgex) {
+            val = -val;
+            mdogbox.setScaleX(-mdogbox.getScaleX());
+        }
+        return val;
+    }
+
+    public float boundY(float dy) {
+        float val = dy;
+        if ((y + dy)/scale + dipdogheight + starty + paddingbot > dipheight) {
+            val = (dipheight - y/scale - dipdogheight - starty - paddingbot) * scale;
+            onedgey = true;
+        }
+        else if ((y + dy)/scale  + starty - padding < 0) {
+            val = ((-y)/scale - starty + padding) * scale;
+            onedgey = true;
+        }
+        else {
+            onedgey = false;
+        }
+        if (onedgey) {
+            val = -val;
+        }
+        return val;
     }
 
 
-
-    public class GifListener implements Animation.AnimationListener {
-
-        public GifListener(){
-
-        }
-
+    public class GifListener extends AnimatorListenerAdapter {
         @Override
-        public void onAnimationStart(Animation animation) {
+        public void onAnimationEnd(Animator animation) {
+            super.onAnimationEnd(animation);
 
-        }
-
-        @Override
-        public void onAnimationEnd(Animation animation) {
             if (state) {
-                current = nextAnimation();
-                mdogbox.setAnimation(current);
-                current.setAnimationListener(listener);
-                current.start();
+                nextAnimation();
+                animation.removeAllListeners();
             }
             else {
-                mdogbox.setVisibility(View.INVISIBLE);
-                mdogbox.setTranslationX(mdogbox.getTranslationX() + x);
-                mdogbox.setTranslationY(mdogbox.getTranslationY() + y);
                 mdog.setImageResource(R.drawable.sleepingdogleft);
                 mdog.setPadding(0, 20, 0, 0);
                 AnimationDrawable ani = (AnimationDrawable) mdog.getDrawable();
                 ani.start();
-                mdogbox.setVisibility(View.VISIBLE);
+                mp.seekTo(0);
+                mp.pause();
             }
-        }
-
-        @Override
-        public void onAnimationRepeat(Animation animation) {
-
         }
     }
 }
