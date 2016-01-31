@@ -6,6 +6,7 @@ import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.graphics.drawable.AnimationDrawable;
 import android.media.MediaPlayer;
+import android.os.SystemClock;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -37,8 +38,8 @@ public class MainActivity extends AppCompatActivity {
     float paddingx = 8;
     float paddingbot = 65;
     float scale;
-    boolean onedgex = false;
-    boolean onedgey = false;
+    long lastpress= 0;
+    AnimatorSet current;
     MediaPlayer mp;
 
     @Override
@@ -58,7 +59,19 @@ public class MainActivity extends AppCompatActivity {
         mp.setLooping(true);
     }
 
+    public void reset(View view) {
+        x = 0;
+        y = 0;
+        state = false;
+        current.end();
+        mdogbox.setY(starty * scale);
+        mdogbox.setX(startx * scale);
+        mp.seekTo(0);
+        mp.pause();
+    }
+
     public void woof(View view) {
+        view.setClickable(false);
         scale = getApplicationContext().getResources().getDisplayMetrics().density;
         if (first) {
             startx = mdogbox.getX() / scale;
@@ -68,8 +81,8 @@ public class MainActivity extends AppCompatActivity {
         state = !state;
         dipdogheight = mdogbox.getHeight()/scale;
         dipdogwidth = mdogbox.getWidth()/scale;
-        dipwidth = mdogpen.getMeasuredWidth()/scale;
-        dipheight = mdogpen.getMeasuredHeight()/scale;
+        dipwidth = mdogpen.getWidth()/scale;
+        dipheight = mdogpen.getHeight()/scale;
         if (state) {
             mp.start();
             mdog.setImageResource(R.drawable.walkingdogright);
@@ -103,6 +116,7 @@ public class MainActivity extends AppCompatActivity {
         movement.playTogether(new ObjectAnimator[]{anim, anim2});
         movement.addListener(listener);
         movement.start();
+        current = movement;
         x += dx;
         y += dy;
     }
@@ -111,18 +125,9 @@ public class MainActivity extends AppCompatActivity {
         float val = dx;
         if ((x + dx)/scale + dipdogwidth + startx + paddingx > dipwidth) {
             val = (dipwidth - x/scale - dipdogwidth - startx - paddingx) * scale;
-            onedgex = true;
         }
         else if ((x + dx)/scale  + startx - paddingx < 0) {
             val =  ((-x)/scale - startx + paddingx) * scale;
-            onedgex = true;
-        }
-        else {
-            onedgex = false;
-        }
-        if (onedgex) {
-            val = -val;
-            mdogbox.setScaleX(-mdogbox.getScaleX());
         }
         return val;
     }
@@ -131,23 +136,24 @@ public class MainActivity extends AppCompatActivity {
         float val = dy;
         if ((y + dy)/scale + dipdogheight + starty + paddingbot > dipheight) {
             val = (dipheight - y/scale - dipdogheight - starty - paddingbot) * scale;
-            onedgey = true;
+
         }
         else if ((y + dy)/scale  + starty - padding < 0) {
             val = ((-y)/scale - starty + padding) * scale;
-            onedgey = true;
-        }
-        else {
-            onedgey = false;
-        }
-        if (onedgey) {
-            val = -val;
+
         }
         return val;
     }
 
 
     public class GifListener extends AnimatorListenerAdapter {
+        @Override
+        public void onAnimationStart(Animator animation) {
+            super.onAnimationStart(animation);
+            View temp = findViewById(R.id.button);
+            temp.setClickable(true);
+        }
+
         @Override
         public void onAnimationEnd(Animator animation) {
             super.onAnimationEnd(animation);
@@ -164,6 +170,8 @@ public class MainActivity extends AppCompatActivity {
                 mp.seekTo(0);
                 mp.pause();
             }
+            View temp = findViewById(R.id.button);
+            temp.setClickable(true);
         }
     }
 }
